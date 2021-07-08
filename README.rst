@@ -1,4 +1,5 @@
-# StarWitch WiFI IMU firmware
+Chuuni Tracker Firmware
+^^^^^^^^^^^^^^^^^^^^^^^
 
 For a custom board with an ESP32-S2, BNO085 IMU, LC709203 battery monitor.
 
