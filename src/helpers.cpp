@@ -10,10 +10,10 @@ const int daylightOffset_sec = 3600;
 void printLocalTime() {
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
-    DEBUG_PRINTLN("Failed to obtain time");
+    Serial.println("Failed to obtain time");
     return;
   }
-  DEBUG_PRINTLN(&timeinfo, "%A, %B %d %Y %H:%M:%S");
+  Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
 }
 
 void getTime() {

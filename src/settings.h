@@ -1,5 +1,4 @@
-#ifndef wifi_imu_settings_h
-#define wifi_imu_settings_h
+#pragma once
 
 #ifndef OSC_HOST
 #define OSC_HOST "192.168.2.1"
@@ -30,11 +29,3 @@
 #ifndef IO_ENABLE
 #define IO_ENABLE 37
 #endif
-
-#ifdef WIFI_IMU_DEBUG
-#define DEBUG_PRINT(x) Serial.print(x)
-#define DEBUG_PRINTLN(x) Serial.println(x)
-#define DEBUG_PRINTF(x...)
-#endif
-
-#endif // wifi_imu_settings_h
