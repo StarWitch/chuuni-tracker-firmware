@@ -46,14 +46,11 @@
 #define MUX_DISABLE 0
 #endif
 
-// set this in overrides.ini
-#ifndef WIFI_SSID
-#define WIFI_SSID ""
-#endif
-
-// set this in overrides.ini
-#ifndef WIFI_PASS
-#define WIFI_PASS ""
+#ifdef CHUUNI_USER_CONFIG
+#include "user_config.h"
+#else
+#define WIFI_SSID "DefaultSSID"
+#define WIFI_PASS "DefaultPass"
 #endif
 
 #ifndef I2C_DEBUG

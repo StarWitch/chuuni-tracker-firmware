@@ -6,4 +6,4 @@
 *.swp
 CMakeLists*
 compile_commands.json
-secrets.ini
+**/user_config.h
