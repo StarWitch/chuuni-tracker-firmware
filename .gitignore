@@ -5,3 +5,4 @@
 .vscode/ipch
 *.swp
 CMakeLists*
+compile_commands.json

@@ -17,13 +17,13 @@ const int start = 1;
 const int start = 0;
 #endif
 
-const char names[11][13] = { 
+const char names[11][13] = {
   "leftForearm",
-  "leftPinkie", 
-  "leftRing",  
-  "leftMiddle", 
-  "leftIndex", 
-  "leftThumb", 
+  "leftPinkie",
+  "leftRing",
+  "leftMiddle",
+  "leftIndex",
+  "leftThumb",
   "leftWrist",
 };
 
@@ -48,9 +48,9 @@ void setup() {
   Wire1.begin(SDA_INT, SCL_INT, 400000);
   Serial.println("Began wire!");
 
-  #ifdef I2C_DEBUG
-  i2cScanner(&Wire, &Wire1);
-  #endif
+  if (I2C_DEBUG == true) {
+	  i2cScanner(&Wire, &Wire1);
+  }
 
   // allocate sensors
   IMUSensor = new BNO080 *[NUMBER_OF_SENSORS];
@@ -61,7 +61,7 @@ void setup() {
   Serial.println("Allocated sensors!");
 
 
-  
+
   // Initialize all the sensors
   bool initSuccess = true;
   bool enabled;
@@ -165,7 +165,7 @@ void loop() {
       Serial.println(x);
     }
   }
-  
+
   #ifndef WIFI_DISABLE
   Udp.beginPacket(OSC_HOST, OSC_HOST_PORT);
   bundle.send(Udp); // send the bytes to the SLIP stream
