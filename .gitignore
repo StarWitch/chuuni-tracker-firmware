@@ -6,3 +6,4 @@
 *.swp
 CMakeLists*
 compile_commands.json
+secrets.ini
