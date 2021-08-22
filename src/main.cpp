@@ -1,42 +1,32 @@
-#include "settings.h"
-#include "helpers.h"
-#include "sensors.h"
-
 #include <OSCBundle.h>
 #include <OSCMessage.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <Wire.h>
 
+#include "chuuni.h"
+
+#include "helpers.h"
+#include "sensors.h"
+
 QWIICMUX myMux;
 WiFiUDP Udp;
+BNO080 **IMUSensor;
 
-#ifdef INT_IMU
-const int start = 1;
-#else
-const int start = 0;
-#endif
-
-const char names[11][13] = {
-  "leftForearm",
-  "leftPinkie",
-  "leftRing",
-  "leftMiddle",
-  "leftIndex",
-  "leftThumb",
-  "leftWrist",
-};
+const int start = INT_IMU;
+const char *sensors;
 
 void setup() {
-  #ifdef WIFI_IMU_DEBUG
-  Serial.begin(115200);
-  #endif
+  if (!WIFI_IMU_DEBUG) {
+    Serial.begin(115200);
+  }
 
   // enable IO 3.3v regulator
   pinMode(IO_ENABLE_PIN, OUTPUT);
   digitalWrite(IO_ENABLE_PIN, HIGH);
   delay(1000);
 
+  // reset internal BNO085
   pinMode(BNO_INT_RST, OUTPUT);
   digitalWrite(BNO_INT_RST, HIGH);
   delay(50);
@@ -49,8 +39,10 @@ void setup() {
   Serial.println("Began wire!");
 
   if (I2C_DEBUG == true) {
-	  i2cScanner(&Wire, &Wire1);
+    i2cScanner(&Wire, &Wire1);
   }
+
+  sensors = getSensors();
 
   // allocate sensors
   IMUSensor = new BNO080 *[NUMBER_OF_SENSORS];
@@ -60,91 +52,90 @@ void setup() {
   }
   Serial.println("Allocated sensors!");
 
-
-
   // Initialize all the sensors
   bool initSuccess = true;
   bool enabled;
-  #ifdef INT_IMU
-  enabled = IMUSensor[0]->begin(0x4B, Wire1); // internal sensor on the WiFi board
-  if (enabled == false) {
-    Serial.println("Failed to start onboard IMU");
-  } else {
-    Serial.println("IMU 0 (Onboard) configured");
-  }
-  #endif
 
-  #ifndef MUX_DISABLE
-  // on "external" Wire interface
-  if (myMux.begin(QWIIC_MUX_DEFAULT_ADDRESS, Wire) == false) {
-    Serial.println("Mux not detected. Freezing...");
-    while (1) {
-      ;
-    }
-  }
-  delay(500); // wait for mux to truly begin
-  for (int x = start; x < NUMBER_OF_SENSORS; x++) {
-    Serial.print("Mux Port ");
-    Serial.println(x - start);
-    myMux.setPort(x - start);
-    delay(300);
-    enabled = IMUSensor[x]->begin(0x4B, Wire);
-    delay(100);
+  if (!INT_IMU) {
+    enabled = IMUSensor[0]->begin(0x4B, Wire1); // internal sensor on the WiFi board
     if (enabled == false) {
-      Serial.print("Sensor ");
-      Serial.print(x);
-      Serial.println(" did not begin! Check wiring");
-      initSuccess = false;
+      Serial.println("Failed to start onboard IMU");
     } else {
-      // Configure each sensor
-      IMUSensor[x]->enableRotationVector(10); // Send data update every 10ms
-      Serial.print("IMU ");
-      Serial.print(x);
-      Serial.println(" configured");
+      Serial.println("IMU 0 (Onboard) configured");
     }
   }
 
-  if (initSuccess == false) {
-    Serial.print("Failed to initialize. Freezing...");
-    while (1) {
-      ;
+  if (!MUX_DISABLE) {
+    // on "external" Wire interface
+    if (myMux.begin(QWIIC_MUX_DEFAULT_ADDRESS, Wire) == false) {
+      Serial.println("Mux not detected. Freezing...");
+      while (1) {
+        ;
+      }
+    }
+    delay(500); // wait for mux to truly begin
+
+    for (int x = start; x < NUMBER_OF_SENSORS; x++) {
+      Serial.print("Mux Port ");
+      Serial.println(x - start);
+      myMux.setPort(x - start);
+      delay(300);
+      enabled = IMUSensor[x]->begin(0x4B, Wire);
+      delay(100);
+      if (enabled == false) {
+        Serial.print("Sensor ");
+        Serial.print(x);
+        Serial.println(" did not begin! Check wiring");
+        initSuccess = false;
+      } else {
+        // Configure each sensor
+        IMUSensor[x]->enableRotationVector(10); // Send data update every 10ms
+        Serial.print("IMU ");
+        Serial.print(x);
+        Serial.println(" configured");
+      }
+    }
+
+    if (initSuccess == false) {
+      Serial.print("Failed to initialize. Freezing...");
+      while (1) {
+        ;
+      }
     }
   }
-  #endif
 
-#ifndef WIFI_DISABLE
-  // connect to WiFi
-  Serial.printf("Connecting to %s ", WIFI_SSID);
-  WiFi.mode(WIFI_OFF);
-  WiFi.disconnect();
+  if (!WIFI_DISABLE) {
+    // connect to WiFi
+    Serial.printf("Connecting to %s ", WIFI_SSID);
+    WiFi.mode(WIFI_OFF);
+    WiFi.disconnect();
 
-  delay(500);
+    delay(500);
 
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.print(".");
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
+    while (WiFi.status() != WL_CONNECTED) {
+      delay(1000);
+      Serial.print(".");
+    }
+
+    Serial.println("");
+    Serial.println("WiFi connected");
+    Serial.println("IP address: ");
+    Serial.print(WiFi.localIP());
+    Serial.println("");
+
+    Serial.println("Try to connect to NTP-server and get time  ");
+    getTime();
+
+    Udp.begin(OSC_CLIENT_PORT);
+    Serial.println("Start UDP Client");
+    Serial.println("");
   }
-
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
-  Serial.print(WiFi.localIP());
-  Serial.println("");
-
-  Serial.println("Try to connect to NTP-server and get time  ");
-  getTime();
-
-  Udp.begin(OSC_CLIENT_PORT);
-  Serial.println("Start UDP Client");
-  Serial.println("");
-#endif
-
 }
-void loop() {
-  OSCBundle bundle;
 
+void loop() {
   // Look for reports from the IMU
+  OSCBundle bundle;
   for (int x = 0; x < NUMBER_OF_SENSORS - start; x++) {
     if (x != 0) {
       myMux.setPort(x - start);
@@ -157,19 +148,19 @@ void loop() {
       float quatJ = IMUSensor[x]->getQuatJ();
       float quatK = IMUSensor[x]->getQuatK();
       float quatReal = IMUSensor[x]->getQuatReal();
-      bundle.add("/hand").add(names[x]).add(quatI).add(quatJ).add(quatK).add(quatReal);
+      bundle.add(IMU_PART_NAME).add(sensors[x]).add(quatI).add(quatJ).add(quatK).add(quatReal);
     } else {
       Serial.print("data not available for: ");
-      Serial.print(names[x]);
+      Serial.print(sensors[x]);
       Serial.print(" ");
       Serial.println(x);
     }
   }
 
-  #ifndef WIFI_DISABLE
-  Udp.beginPacket(OSC_HOST, OSC_HOST_PORT);
-  bundle.send(Udp); // send the bytes to the SLIP stream
-  Udp.endPacket();  // mark the end of the OSC Packet
-  #endif
+  if (!WIFI_DISABLE) {
+    Udp.beginPacket(OSC_HOST, OSC_HOST_PORT);
+    bundle.send(Udp); // send the bytes to the SLIP stream
+    Udp.endPacket();  // mark the end of the OSC Packet
+  }
   bundle.empty();   // empty the bundle to free room for a new one
 }

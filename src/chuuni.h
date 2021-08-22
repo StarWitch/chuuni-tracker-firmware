@@ -39,7 +39,7 @@
 #endif
 
 #ifndef NUMBER_OF_SENSORS
-#define BNO_INT_RST 7
+#define NUMBER_OF_SENSORS 1
 #endif
 
 #ifndef MUX_DISABLE
@@ -55,3 +55,32 @@
 #ifndef WIFI_PASS
 #define WIFI_PASS ""
 #endif
+
+#ifndef I2C_DEBUG
+#define I2C_DEBUG 0
+#endif
+
+#ifndef WIFI_DISABLE
+#define WIFI_DISABLE 0
+#endif
+
+#ifndef WIFI_IMU_DEBUG
+#define WIFI_IMU_DEBUG 0
+#endif
+
+#ifndef INT_IMU
+#define INT_IMU 0
+#endif
+
+#ifndef MUX_DISABLE
+#define MUX_DISABLE 0
+#endif
+
+#ifndef NUMBER_OF_SENSORS
+#define NUMBER_OF_SENSORS 1
+#endif
+
+#ifndef IMU_PART_NAME
+#define IMU_PART_NAME "default"
+#endif
+

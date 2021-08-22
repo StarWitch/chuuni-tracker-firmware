@@ -1,7 +1,8 @@
-#include "settings.h"
-#include "helpers.h"
 #include <time.h>
 #include <WiFi.h>
+
+#include "chuuni.h"
+#include "helpers.h"
 
 const char *ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 3600;
@@ -18,7 +19,7 @@ void printLocalTime() {
 
 void getTime() {
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-    printLocalTime();   
+    printLocalTime();
 }
 
 void i2cScanner(TwoWire* wire0, TwoWire* wire1) {
