@@ -1,8 +1,9 @@
-#include <OSCBundle.h>
-#include <OSCMessage.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <Wire.h>
+
+#include <OSCBundle.h>
+#include <OSCMessage.h>
 
 #include "chuuni.h"
 
@@ -13,11 +14,11 @@ QWIICMUX myMux;
 WiFiUDP Udp;
 BNO080 **IMUSensor;
 
+const char **sensornames;
 const int start = INT_IMU;
-const char *sensors;
 
 void setup() {
-  if (!WIFI_IMU_DEBUG) {
+  if (WIFI_IMU_DEBUG) {
     Serial.begin(115200);
   }
 
@@ -33,6 +34,8 @@ void setup() {
   digitalWrite(BNO_INT_RST, LOW);
   delay(50);
 
+  sensornames = getSensorsNames();
+
   Serial.println("Begin wire!");
   Wire.begin(SDA_EXT, SCL_EXT, 400000); // sda, scl, frequency (400kHz)
   Wire1.begin(SDA_INT, SCL_INT, 400000);
@@ -42,11 +45,8 @@ void setup() {
     i2cScanner(&Wire, &Wire1);
   }
 
-  sensors = getSensors();
-
   // allocate sensors
   IMUSensor = new BNO080 *[NUMBER_OF_SENSORS];
-
   for (int x = 0; x < NUMBER_OF_SENSORS; x++) {
     IMUSensor[x] = new BNO080();
   }
@@ -56,7 +56,7 @@ void setup() {
   bool initSuccess = true;
   bool enabled;
 
-  if (!INT_IMU) {
+  if (INT_IMU) {
     enabled = IMUSensor[0]->begin(0x4B, Wire1); // internal sensor on the WiFi board
     if (enabled == false) {
       Serial.println("Failed to start onboard IMU");
@@ -69,9 +69,7 @@ void setup() {
     // on "external" Wire interface
     if (myMux.begin(QWIIC_MUX_DEFAULT_ADDRESS, Wire) == false) {
       Serial.println("Mux not detected. Freezing...");
-      while (1) {
-        ;
-      }
+      while (1) {;}
     }
     delay(500); // wait for mux to truly begin
 
@@ -88,8 +86,7 @@ void setup() {
         Serial.println(" did not begin! Check wiring");
         initSuccess = false;
       } else {
-        // Configure each sensor
-        IMUSensor[x]->enableRotationVector(10); // Send data update every 10ms
+        IMUSensor[x]->enableRotationVector(IMU_UPDATE_RATE);
         Serial.print("IMU ");
         Serial.print(x);
         Serial.println(" configured");
@@ -98,9 +95,7 @@ void setup() {
 
     if (initSuccess == false) {
       Serial.print("Failed to initialize. Freezing...");
-      while (1) {
-        ;
-      }
+      while (1) {;}
     }
   }
 
@@ -123,37 +118,32 @@ void setup() {
     Serial.println("IP address: ");
     Serial.print(WiFi.localIP());
     Serial.println("");
+    Serial.println("Trying to get NTP time...");
 
-    Serial.println("Try to connect to NTP-server and get time  ");
     getTime();
 
     Udp.begin(OSC_CLIENT_PORT);
-    Serial.println("Start UDP Client");
+    Serial.println("Starting UDP Client");
     Serial.println("");
   }
 }
 
 void loop() {
-  // Look for reports from the IMU
   OSCBundle bundle;
+
   for (int x = 0; x < NUMBER_OF_SENSORS - start; x++) {
     if (x != 0) {
       myMux.setPort(x - start);
     }
     if (IMUSensor[x]->dataAvailable() == true) {
-      //Serial.print(names[x]);
-      //Serial.print(": ");
-      //Serial.println(x);
       float quatI = IMUSensor[x]->getQuatI();
       float quatJ = IMUSensor[x]->getQuatJ();
       float quatK = IMUSensor[x]->getQuatK();
       float quatReal = IMUSensor[x]->getQuatReal();
-      bundle.add(IMU_PART_NAME).add(sensors[x]).add(quatI).add(quatJ).add(quatK).add(quatReal);
-    } else {
-      Serial.print("data not available for: ");
-      Serial.print(sensors[x]);
-      Serial.print(" ");
-      Serial.println(x);
+      bundle.add(PART).add(sensornames[x]).add(quatI).add(quatJ).add(quatK).add(quatReal);
+	  Serial.print(PART);
+	  Serial.print(": ");
+	  Serial.println(sensornames[x]);
     }
   }
 

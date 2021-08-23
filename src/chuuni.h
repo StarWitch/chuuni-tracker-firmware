@@ -1,5 +1,8 @@
 #pragma once
 
+// in hertz
+#define IMU_UPDATE_RATE 1
+
 // unsure if these two do anything on the Arduino framework
 #ifdef CORE_DEBUG_LEVEL
 #undef CORE_DEBUG_LEVEL
@@ -42,10 +45,6 @@
 #define NUMBER_OF_SENSORS 1
 #endif
 
-#ifndef MUX_DISABLE
-#define MUX_DISABLE 0
-#endif
-
 #ifdef CHUUNI_USER_CONFIG
 #include "user_config.h"
 #else
@@ -81,3 +80,13 @@
 #define IMU_PART_NAME "default"
 #endif
 
+#define PART "default"
+
+#ifdef LEFTHAND
+#define PART "lefthand"
+#define NUMBER_OF_SENSORS 6
+#endif
+#ifdef RIGHTHAND
+#define PART "righthand"
+#define NUMBER_OF_SENSORS 6
+#endif
