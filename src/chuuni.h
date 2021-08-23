@@ -1,11 +1,22 @@
 #pragma once
 
+#ifdef CHUUNI_USER_CONFIG
+#include "user_config.h"
+#else
+#define WIFI_SSID "DefaultSSID"
+#define WIFI_PASS "DefaultPass"
+#endif
+
 // in hertz
 #define IMU_UPDATE_RATE 1
 
 // unsure if these two do anything on the Arduino framework
 #ifdef CORE_DEBUG_LEVEL
 #undef CORE_DEBUG_LEVEL
+#endif
+
+#ifdef LOG_LOCAL_LEVEL
+#undef LOG_LOCAL_LEVEL
 #endif
 
 #define CORE_DEBUG_LEVEL 3
@@ -41,17 +52,6 @@
 #define BNO_INT_RST 16
 #endif
 
-#ifndef NUMBER_OF_SENSORS
-#define NUMBER_OF_SENSORS 1
-#endif
-
-#ifdef CHUUNI_USER_CONFIG
-#include "user_config.h"
-#else
-#define WIFI_SSID "DefaultSSID"
-#define WIFI_PASS "DefaultPass"
-#endif
-
 #ifndef I2C_DEBUG
 #define I2C_DEBUG 0
 #endif
@@ -72,16 +72,6 @@
 #define MUX_DISABLE 0
 #endif
 
-#ifndef NUMBER_OF_SENSORS
-#define NUMBER_OF_SENSORS 1
-#endif
-
-#ifndef IMU_PART_NAME
-#define IMU_PART_NAME "default"
-#endif
-
-#define PART "default"
-
 #ifdef LEFTHAND
 #define PART "lefthand"
 #define NUMBER_OF_SENSORS 6
@@ -89,4 +79,12 @@
 #ifdef RIGHTHAND
 #define PART "righthand"
 #define NUMBER_OF_SENSORS 6
+#endif
+
+#ifndef PART
+#define PART "default"
+#endif
+
+#ifndef NUMBER_OF_SENSORS
+#define NUMBER_OF_SENSORS 1
 #endif

@@ -1,10 +1,9 @@
 #pragma once
 
-#undef I2C_BUFFER_LENGTH // ignore redef warning
-#include <SparkFun_BNO080_Arduino_Library.h>
-#include <SparkFun_I2C_Mux_Arduino_Library.h>
-
 #include "chuuni.h"
+
+#include <SparkFun_I2C_Mux_Arduino_Library.h>
+#include <SparkFun_BNO080_Arduino_Library.h>
 
 const char *fingernames[] = {
     "wrist",      "pinkieUpper", "pinkieLower", "ringUpper",
