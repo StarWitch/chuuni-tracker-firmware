@@ -25,7 +25,7 @@ void setup() {
   // enable IO 3.3v regulator
   pinMode(IO_ENABLE_PIN, OUTPUT);
   digitalWrite(IO_ENABLE_PIN, HIGH);
-  delay(1000);
+  delay(500); // wait for stuff to power on
 
   // reset internal BNO085
   pinMode(BNO_INT_RST, OUTPUT);
@@ -36,11 +36,13 @@ void setup() {
 
   sensornames = getSensorsNames();
 
+  // initialize internal and external I2C
   Serial.println("Begin wire!");
   Wire.begin(SDA_EXT, SCL_EXT, 400000); // sda, scl, frequency (400kHz)
   Wire1.begin(SDA_INT, SCL_INT, 400000);
   Serial.println("Began wire!");
 
+  // debugging
   if (I2C_DEBUG == true) {
     i2cScanner(&Wire, &Wire1);
   }
@@ -57,7 +59,8 @@ void setup() {
   bool enabled;
 
   if (INT_IMU) {
-    enabled = IMUSensor[0]->begin(0x4B, Wire1); // internal sensor on the WiFi board
+    enabled =
+        IMUSensor[0]->begin(0x4B, Wire1); // internal sensor on the WiFi board
     if (enabled == false) {
       Serial.println("Failed to start onboard IMU");
     } else {
@@ -69,7 +72,9 @@ void setup() {
     // on "external" Wire interface
     if (myMux.begin(QWIIC_MUX_DEFAULT_ADDRESS, Wire) == false) {
       Serial.println("Mux not detected. Freezing...");
-      while (1) {;}
+      while (1) {
+        ;
+      }
     }
     delay(500); // wait for mux to truly begin
 
@@ -95,7 +100,9 @@ void setup() {
 
     if (initSuccess == false) {
       Serial.print("Failed to initialize. Freezing...");
-      while (1) {;}
+      while (1) {
+        ;
+      }
     }
   }
 
@@ -140,10 +147,21 @@ void loop() {
       float quatJ = IMUSensor[x]->getQuatJ();
       float quatK = IMUSensor[x]->getQuatK();
       float quatReal = IMUSensor[x]->getQuatReal();
-      bundle.add(PART).add(sensornames[x]).add(quatI).add(quatJ).add(quatK).add(quatReal);
-	  Serial.print(PART);
-	  Serial.print(": ");
-	  Serial.println(sensornames[x]);
+      bundle.add(PART)
+          .add(sensornames[x])
+          .add(quatI)
+          .add(quatJ)
+          .add(quatK)
+          .add(quatReal);
+
+      /* Serial.print(PART); */
+      /* Serial.print(": "); */
+      /* Serial.println(sensornames[x]); */
+    } else {
+      Serial.print("data not available for: ");
+      Serial.print(sensornames[x]);
+      Serial.print(" ");
+      Serial.println(x);
     }
   }
 
@@ -152,5 +170,5 @@ void loop() {
     bundle.send(Udp); // send the bytes to the SLIP stream
     Udp.endPacket();  // mark the end of the OSC Packet
   }
-  bundle.empty();   // empty the bundle to free room for a new one
+  bundle.empty(); // empty the bundle to free room for a new one
 }

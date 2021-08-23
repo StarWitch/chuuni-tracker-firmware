@@ -1,42 +1,36 @@
 #pragma once
-#include "chuuni.h"
 
+#undef I2C_BUFFER_LENGTH // ignore redef warning
 #include <SparkFun_BNO080_Arduino_Library.h>
 #include <SparkFun_I2C_Mux_Arduino_Library.h>
 
+#include "chuuni.h"
+
 const char *fingernames[] = {
-  "wrist",
-  "pinkieUpper",
-  "pinkieLower",
-  "ringUpper",
-  "ringLower",
-  "middleUpper",
-  "middleLower",
-  "indexUpper",
-  "indexLower",
-  "thumbUpper",
-  "thumbLower",
+    "wrist",      "pinkieUpper", "pinkieLower", "ringUpper",
+    "ringLower",  "middleUpper", "middleLower", "indexUpper",
+    "indexLower", "thumbUpper",  "thumbLower",
 };
 
 const char *legnames[] = {
-  "thigh",
-  "calf",
-  "foot",
+    "thigh",
+    "calf",
+    "foot",
 };
 
 const char *backnames[] = {
-  "head",
-  "upper",
-  "lower",
+    "head",
+    "upper",
+    "lower",
 };
 
 const char *armnames[] = {
-  "forearm",
-  "bicep",
+    "forearm",
+    "bicep",
 };
 
 const char *defaultnames[] = {
-  "sensor",
+    "sensor",
 };
 
 const char **getSensorsNames() {
