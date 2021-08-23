@@ -15,13 +15,17 @@ WiFiUDP Udp;
 BNO080 **IMUSensor;
 
 const char **sensornames;
-const int start = INT_IMU;
+const int start = INTERNAL_IMU_ENABLE;
 
 void setup() {
-  if (WIFI_IMU_DEBUG) {
+  if (SERIAL_DEBUG) {
     Serial.begin(115200);
   }
 
+  /*
+   * pin section
+   *
+   */
   // enable IO 3.3v regulator
   pinMode(IO_ENABLE_PIN, OUTPUT);
   digitalWrite(IO_ENABLE_PIN, HIGH);
@@ -58,7 +62,7 @@ void setup() {
   bool initSuccess = true;
   bool enabled;
 
-  if (INT_IMU) {
+  if (INTERNAL_IMU_ENABLE) {
     enabled =
         IMUSensor[0]->begin(0x4B, Wire1); // internal sensor on the WiFi board
     if (enabled == false) {
