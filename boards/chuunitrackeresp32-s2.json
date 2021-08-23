@@ -20,7 +20,7 @@
       "arduino",
       "espidf"
     ],
-    "name": "Adafruit Metro ESP32-S2",
+    "name": "ChuuniTracker",
     "upload": {
       "flash_size": "4MB",
       "maximum_ram_size": 327680,
@@ -28,7 +28,6 @@
       "require_upload_port": true,
       "speed": 460800
     },
-    "url": "https://www.adafruit.com/product/4775",
-    "vendor": "Adafruit"
-  }
-  
+    "url": "https://gitlab.com/StarWitch/chuuni-tracker-firmware",
+    "vendor": "StarWitch"
+}

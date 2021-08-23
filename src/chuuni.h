@@ -80,6 +80,26 @@
 #define PART "righthand"
 #define NUMBER_OF_SENSORS 6
 #endif
+#ifdef LEFTLEG
+#define PART "leftleg"
+#define NUMBER_OF_SENSORS 3
+#endif
+#ifdef RIGHTLEG
+#define PART "rightleg"
+#define NUMBER_OF_SENSORS 3
+#endif
+#ifdef LEFTARM
+#define PART "leftarm"
+#define NUMBER_OF_SENSORS 2
+#endif
+#ifdef RIGHTARM
+#define PART "rightarm"
+#define NUMBER_OF_SENSORS 2
+#endif
+#ifdef TORSO
+#define PART "torso"
+#define NUMBER_OF_SENSORS 3
+#endif
 
 #ifndef PART
 #define PART "default"
