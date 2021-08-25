@@ -40,7 +40,7 @@
 
 // IP of the host (i.e: computer running Unity)
 #ifndef OSC_HOST
-#define OSC_HOST "192.168.175.81"
+#define OSC_HOST "192.168.2.1"
 #endif
 
 // what port the host is expecting data on (i.e: Unity)
@@ -77,9 +77,19 @@
 #define BNO_INT_RST 16
 #endif
 
+// neopixel status pin
+#ifndef NEOPIXEL_PIN
+#define NEOPIXEL_PIN 45
+#endif
+
+// neopixel status pin
+#ifndef VDIV_PIN
+#define VDIV_PIN 5
+#endif
+
 // IMU section
 
-// in hertz
+// in hertz, has to be at least 1
 #define IMU_UPDATE_RATE 1
 
 // for external IMUs connected to a TCA9458 multiplexer
@@ -91,13 +101,17 @@
 #define INTERNAL_IMU_ENABLE true // we generally want the internal IMU to be enabled
 #endif
 
+#ifndef EXTERNAL_IMU_ENABLE
+#define EXTERNAL_IMU_ENABLE false // needs to be explicitly defined
+#endif
+
 #ifdef LEFTHAND
 #define PART "lefthand"
-#define NUMBER_OF_SENSORS 6 // should be 11
+#define NUMBER_OF_SENSORS 12
 #endif
 #ifdef RIGHTHAND
 #define PART "righthand"
-#define NUMBER_OF_SENSORS 6 // should be 11
+#define NUMBER_OF_SENSORS 12
 #endif
 #ifdef LEFTLEG
 #define PART "leftleg"

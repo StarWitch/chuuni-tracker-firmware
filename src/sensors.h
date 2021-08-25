@@ -6,9 +6,9 @@
 #include <SparkFun_BNO080_Arduino_Library.h>
 
 const char *fingernames[] = {
-    "wrist",      "pinkieUpper", "pinkieLower", "ringUpper",
-    "ringLower",  "middleUpper", "middleLower", "indexUpper",
-    "indexLower", "thumbUpper",  "thumbLower",
+    "pinkieUpper", "pinkieLower", "ringUpper", "ringLower",
+    "middleUpper", "middleLower", "indexUpper", "indexLower",
+    "thumbUpper",  "thumbLower", "wrist", "forearm"
 };
 
 const char *legnames[] = {
