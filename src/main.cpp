@@ -92,7 +92,7 @@ void loop() {
   // green == wifi reconnect
   // red == sensor restart
   while (opt_button.pressed) {
-    Serial.println("OPT Button: Button press received");
+    Serial.println("Opt: Button press received");
     opt_button.pressed = false;
     menu_selector();
     if (opt_button.pressed == false) {
@@ -119,7 +119,7 @@ void loop() {
 
   // enables/disables serial prints
   if (debug_button.pressed) {
-    Serial.println("Debug: Button pressed");
+    Serial.println("Debug: Button press received");
     debug_button.pressed = false;
     set_serial_debug();
   }

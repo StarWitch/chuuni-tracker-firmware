@@ -203,7 +203,7 @@ void get_sensors() {
       delay(500);
       if (opt_button.pressed) {
         // allow retry by resetting opt_button selection and returning
-        Serial.println("OPT Button: Press received, trying again");
+        Serial.println("Opt: Button press received, trying again");
         opt_button.selected = 0;
         return;
       }
@@ -323,7 +323,7 @@ void calibration_mode() {
 
       // allows you to press the button again to get out of calibration mode
       if (opt_button.pressed) {
-        Serial.println("OPT Button: Ending calibration prematurely");
+        Serial.println("Opt: Button press received, ending calibration prematurely");
         imu_sensors[sensor]->endCalibration();
         imu_sensors[sensor]->enableGameRotationVector(IMU_UPDATE_RATE);
         imu_sensors[sensor]->enableMagnetometer(IMU_UPDATE_RATE);

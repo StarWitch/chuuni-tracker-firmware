@@ -210,7 +210,7 @@ void set_serial_debug() {
     Serial.begin(115200);
     show_serial_splash();
     Serial.println("MCU: Serial/Debug Mode enabled");
-    Serial.println("MCU: (CAUTION) This significantly slows down reading from the IMUs so only enable this during debugging!");
+    Serial.println("MCU: (CAUTION) This significantly slows down reading from the IMUs so only enable this during debugging!\n\n");
     delay(500);
 
     debug_mode = true;
