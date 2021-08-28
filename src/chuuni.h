@@ -73,8 +73,8 @@
 #endif
 
 // internal/onboard BNO085 reset pin
-#ifndef BNO_INT_RST
-#define BNO_INT_RST 16
+#ifndef BNO_INT_RESET_PIN
+#define BNO_INT_RESET_PIN 16
 #endif
 
 // neopixel status pin
@@ -82,10 +82,23 @@
 #define NEOPIXEL_PIN 45
 #endif
 
-// neopixel status pin
+// voltage divider pin (measuring battery level through ADC)
 #ifndef VDIV_PIN
 #define VDIV_PIN 5
 #endif
+
+// debug start pin (for toggling debug mode, third button)
+#ifndef OPT_BUTTON_PIN
+#define OPT_BUTTON_PIN 6
+#endif
+
+#ifndef BOOT_BUTTON_PIN
+#define BOOT_BUTTON_PIN 0
+#endif
+
+// misc constants
+
+#define VOLTAGE_READ_CONSTANT 1536.0
 
 // IMU section
 
@@ -106,39 +119,62 @@
 #endif
 
 #ifdef LEFTHAND
-#define PART "lefthand"
+#define PART "/lefthand"
 #define NUMBER_OF_SENSORS 12
 #endif
 #ifdef RIGHTHAND
-#define PART "righthand"
+#define PART "/righthand"
 #define NUMBER_OF_SENSORS 12
 #endif
 #ifdef LEFTLEG
-#define PART "leftleg"
+#define PART "/leftleg"
 #define NUMBER_OF_SENSORS 3
 #endif
 #ifdef RIGHTLEG
-#define PART "rightleg"
+#define PART "/rightleg"
 #define NUMBER_OF_SENSORS 3
 #endif
 #ifdef LEFTARM
-#define PART "leftarm"
+#define PART "/leftarm"
 #define NUMBER_OF_SENSORS 2
 #endif
 #ifdef RIGHTARM
-#define PART "rightarm"
+#define PART "/rightarm"
 #define NUMBER_OF_SENSORS 2
 #endif
 #ifdef TORSO
-#define PART "torso"
+#define PART "/torso"
 #define NUMBER_OF_SENSORS 3
 #endif
 
 // set up default sensor
 #ifndef PART
-#define PART "default"
+#define PART "/default"
 #endif
 
 #ifndef NUMBER_OF_SENSORS
 #define NUMBER_OF_SENSORS 1
 #endif
+
+// defining global objects for use
+
+#include <WiFi.h>
+#include <WiFiudp.h>
+#include <Wire.h>
+
+#include <OSCBundle.h>
+#include <OSCMessage.h>
+
+#include <SparkFun_I2C_Mux_Arduino_Library.h>
+#include <SparkFun_BNO080_Arduino_Library.h>
+#include <Adafruit_NeoPixel.h>
+
+extern QWIICMUX i2c_muxer;
+extern WiFiUDP udp;
+extern BNO080 **imu_sensors;
+
+extern const char **sensornames;
+
+extern Adafruit_NeoPixel pixel;
+
+extern bool debug_mode;

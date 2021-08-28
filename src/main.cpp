@@ -1,248 +1,130 @@
-#include <WiFi.h>
-#include <WiFiUdp.h>
-#include <Wire.h>
-
-#include <OSCBundle.h>
-#include <OSCMessage.h>
-
-#include <Adafruit_NeoPixel.h>
-
 #include "chuuni.h"
 
 #include "helpers.h"
 #include "sensors.h"
 
-QWIICMUX myMux;
-WiFiUDP Udp;
-BNO080 **IMUSensor;
-
+WiFiUDP udp;
+BNO080 **imu_sensors;
 const char **sensornames;
-
-Adafruit_NeoPixel pixel(1, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
+QWIICMUX i2c_muxer;
+Adafruit_NeoPixel pixel = Adafruit_NeoPixel(1, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
+OSCBundle bundle;
+int mux_port;
 
 void setup() {
+  // initial pixel setup
   pixel.begin();
   pixel.setBrightness(128);
   pixel.clear();
   pixel.setPixelColor(0, pixel.Color(128, 128, 128));
   pixel.show();
-  delay(500);
+  delay(300);
   pixel.clear();
 
-  if (SERIAL_DEBUG) {
-    Serial.begin(115200);
+  // pin definitions
+  pinMode(VDIV_PIN, INPUT);
+  pinMode(IO_ENABLE_PIN, OUTPUT);
+  pinMode(BNO_INT_RESET_PIN, OUTPUT);
+  pinMode(OPT_BUTTON_PIN, INPUT_PULLUP);
+  pinMode(BOOT_BUTTON_PIN, INPUT_PULLUP);
+
+  // hold down Boot0 pin AFTER initialization (i.e: light comes on) to get serial debug during boot
+  if (SERIAL_DEBUG == true || !digitalRead(BOOT_BUTTON_PIN)) {
+    set_serial_debug();
   }
 
-  // battery ADC
-  pinMode(VDIV_PIN, INPUT);
-  int bat = analogRead(VDIV_PIN);
-  Serial.print("Battery ADC: ");
-  Serial.println(bat);
+  // interrupts for pins to set serial output
+  attachInterruptArg(BOOT_BUTTON_PIN, isr, &debug_button, FALLING);
+  attachInterruptArg(OPT_BUTTON_PIN, isr, &opt_button, FALLING);
 
-  // enable IO 3.3v regulator
-  pinMode(IO_ENABLE_PIN, OUTPUT);
+  // board has two separate 3.3v regulators - one for the WiFi/MCU, and another for everything else
+  // enable and turn on VCCIO 3.3v regulator, powers all IMUs (including onboard)
   digitalWrite(IO_ENABLE_PIN, HIGH);
-  delay(500); // wait for stuff to power on
+  delay(200); // wait for stuff to power on
 
-  // reset internal BNO085
-  // IMPORTANT: reset == LOW
-  pinMode(BNO_INT_RST, OUTPUT);
-  digitalWrite(BNO_INT_RST, LOW);
+  // reset internal BNO085 because why not
+  // IMPORTANT: reset == LOW, start == HIGH
+  digitalWrite(BNO_INT_RESET_PIN, LOW);
   delay(50);
-  digitalWrite(BNO_INT_RST, HIGH);
+  digitalWrite(BNO_INT_RESET_PIN, HIGH);
   delay(50);
-
-  sensornames = getSensorsNames();
 
   // initialize internal and external I2C
-  Serial.println("Begin wire!");
   Wire.begin(SDA_EXT, SCL_EXT, 400000); // sda, scl, frequency (400kHz)
+  Serial.println("I2C: Began Wire");
   Wire1.begin(SDA_INT, SCL_INT, 400000);
-  Serial.println("Began wire!");
+  Serial.println("I2C: Began Wire1");
   delay(300); // wait for i2c to truly begin
 
-  // debugging, scans both I2C busses
-  if (I2C_DEBUG) {
-    i2cScanner(&Wire, &Wire1);
+  // debugging, scans both I2C busses for everything it can see
+  // this will not detect things downstream from the I2C muxer, but *will* detect the muxer itself
+  if (I2C_DEBUG == true) {
+    Serial.println("I2C: Scanning Wire");
+    i2c_scanner(&Wire);
+    Serial.println("I2C: Scanning Wire1");
+    i2c_scanner(&Wire1);
   }
 
-  // allocate sensors
-  IMUSensor = new BNO080 *[NUMBER_OF_SENSORS];
+  // allocate sensor objects
+  imu_sensors = new BNO080 *[NUMBER_OF_SENSORS];
   for (int x = 0; x < NUMBER_OF_SENSORS; x++) {
-    IMUSensor[x] = new BNO080();
+    imu_sensors[x] = new BNO080();
   }
-  Serial.println("Allocated sensors!");
+  Serial.println("BNO08x: Allocated sensors");
 
-  // Initialize all the sensors
-  bool init_success = true;
-  bool enabled;
+  // sets up and .begin()'s all sensors'
+  sensornames = get_sensor_names();
+  get_sensors();
 
-  if (!MUX_DISABLE) {
-    // on "external" Wire interface
-    if (myMux.begin() == false) {
-      Serial.println("Mux not detected. Freezing...");
-      while (1) {
-        pixel.setPixelColor(0, pixel.Color(128, 0, 0));
-        pixel.show();
-        delay(250);
-        pixel.clear();
-        pixel.show();
-        delay(250);
-      }
-    }
-    delay(500); // wait for mux to truly begin
-
-    int mux_port = -1;
-    for (int sensor = 0; sensor < NUMBER_OF_SENSORS - INTERNAL_IMU_ENABLE; sensor++) {
-      pixel.setPixelColor(0, pixel.Color(128, 128, 0));
-      pixel.show();
-
-      // sensors are organized MCU -> I2C Mux -> IMU (even (0x4A)) -> IMU (odd (0x4B))
-      if (sensor == 10) { // TODO: HARDWARE WORKAROUND, REMOVE ME WHEN FIXED
-        mux_port++;
-        Serial.print("(Workaround) Mux Port ");
-        Serial.println(mux_port);
-        myMux.setPort(mux_port);
-        enabled = IMUSensor[sensor]->begin(0x4B, Wire);
-      } else if (sensor % 2 == 0) {
-        mux_port++;
-        Serial.print("Mux Port ");
-        Serial.println(mux_port);
-        myMux.setPort(mux_port);
-        enabled = IMUSensor[sensor]->begin(0x4A, Wire);
-      } else {
-        enabled = IMUSensor[sensor]->begin(0x4B, Wire);
-      }
-
-      delay(100);
-
-      if (enabled == false) {
-        Serial.print("Sensor ");
-        Serial.print(sensor);
-        Serial.println(" did not begin! Check wiring");
-        init_success = false;
-        pixel.setPixelColor(0, pixel.Color(128, 0, 0));
-        pixel.show();
-        delay(500);
-        pixel.clear();
-        pixel.show();
-      } else {
-        IMUSensor[sensor]->enableRotationVector(IMU_UPDATE_RATE); // set update rate in hertz
-        Serial.print("IMU ");
-        Serial.print(sensor);
-        Serial.println(" configured");
-      }
-
-      delay(100);
-    }
-
+  // set WIFI_SSID and WIFI_PASS in your user_config.h file (see README)
+  if (WIFI_DISABLE == false) {
+    get_wifi();
   }
 
-  // for hooking up an IMU without a I2C Mux (body parts, etc)
-  if (EXTERNAL_IMU_ENABLE) {
-    Serial.println("Configuring external sensors (without Mux)...");
-    for (int sensor = 0; sensor < NUMBER_OF_SENSORS - INTERNAL_IMU_ENABLE; sensor++) {
-      // MCU -> 0x4B -> 0x4A
-      if (sensor % 2 == 0) {
-        enabled = IMUSensor[sensor]->begin(0x4B, Wire);
-      } else {
-        enabled = IMUSensor[sensor]->begin(0x4A, Wire);
-      }
-
-      delay(100);
-
-      if (enabled == false) {
-        Serial.print("Sensor ");
-        Serial.print(sensor);
-        Serial.println(" did not begin! (Check wiring.)");
-        init_success = false;
-        pixel.setPixelColor(0, pixel.Color(128, 0, 0));
-        pixel.show();
-        delay(500);
-        pixel.clear();
-        pixel.show();
-      } else {
-        IMUSensor[sensor]->enableRotationVector(IMU_UPDATE_RATE); // set update rate in hertz
-        Serial.print("IMU ");
-        Serial.print(sensor);
-        Serial.println(" configured.");
-      }
-
-      delay(100);
-    }
-  }
-
-  // last sensor in the stack
-  if (INTERNAL_IMU_ENABLE) {
-    enabled = IMUSensor[NUMBER_OF_SENSORS-1]->begin(0x4B, Wire1); // internal sensor on the WiFi board
-    if (enabled == false) {
-      Serial.println("Failed to start onboard IMU!");
-      init_success = false;
-    } else {
-      IMUSensor[NUMBER_OF_SENSORS-1]->enableRotationVector(IMU_UPDATE_RATE);
-      Serial.print("IMU ");
-      Serial.print(NUMBER_OF_SENSORS-1);
-      Serial.println(" (Onboard) configured!");
-    }
-  }
-
-  if (init_success == false) {
-    Serial.print("Failed to initialize. Freezing...");
-    while (1) {
-      pixel.setPixelColor(0, pixel.Color(128, 0, 0));
-      pixel.show();
-      delay(500);
-      pixel.clear();
-      pixel.show();
-      delay(500);
-    }
-  }
-
-  if (!WIFI_DISABLE) {
-    // connect to WiFi
-    pixel.setPixelColor(0, pixel.Color(0, 0, 128));
-    pixel.show();
-    Serial.printf("Connecting to %s ", WIFI_SSID);
-    WiFi.mode(WIFI_OFF);
-    WiFi.disconnect();
-
-    delay(500);
-
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
-    while (WiFi.status() != WL_CONNECTED) {
-      pixel.setPixelColor(0, pixel.Color(0, 0, 128));
-      pixel.show();
-      delay(500);
-      pixel.clear();
-      pixel.show();
-      delay(500);
-      Serial.print(".");
-    }
-
-    Serial.println("");
-    Serial.println("WiFi connected");
-    Serial.println("IP address: ");
-    Serial.print(WiFi.localIP());
-    Serial.println("");
-    Serial.println("Trying to get NTP time...");
-    pixel.setPixelColor(0, pixel.Color(0, 128, 0));
-    pixel.show();
-
-    getTime(); // ensure connection works
-
-    Udp.begin(OSC_CLIENT_PORT);
-    Serial.println("Starting UDP Client");
-    Serial.println("");
-  }
-  pixel.setPixelColor(0, pixel.Color(128, 0, 128));
+  pixel.setPixelColor(0, pixel.Color(128, 0, 128)); // violet
   pixel.show();
   pixel.setBrightness(32);
 }
 
 void loop() {
-  OSCBundle bundle;
-  int mux_port = -1;
-  char partname[] = "/" PART;
+  // basic menu system to select helper functions
+  // blue == calibration mode
+  // green == wifi reconnect
+  // red == sensor restart
+  while (opt_button.pressed) {
+    Serial.println("OPT Button: Button press received");
+    opt_button.pressed = false;
+    menu_selector();
+    if (opt_button.pressed == false) {
+      switch (opt_button.selected) {
+        case 0:
+          opt_button.selected = 0;
+          get_sensors();
+          break;
+        case 1:
+          opt_button.selected = 0;
+          calibration_mode();
+          break;
+        case 2:
+          opt_button.selected = 0;
+          get_wifi();
+          break;
+        default:
+          opt_button.selected = 0;
+          break;
+      }
+      break;
+    }
+  }
+
+  // enables/disables serial prints
+  if (debug_button.pressed) {
+    Serial.println("Debug: Button pressed");
+    debug_button.pressed = false;
+    set_serial_debug();
+  }
+
+  mux_port = -1;
 
   pixel.clear();
   pixel.setPixelColor(0, pixel.Color(128, 0, 128));
@@ -253,22 +135,40 @@ void loop() {
       // two sensors per port, need to count mux independently
       if (sensor % 2 == 0) {
         mux_port++;
-        myMux.setPort(mux_port);
+        i2c_muxer.setPort(mux_port);
       }
     }
-    if (IMUSensor[sensor]->dataAvailable() == true) {
-      float quatI = IMUSensor[sensor]->getQuatI();
-      float quatJ = IMUSensor[sensor]->getQuatJ();
-      float quatK = IMUSensor[sensor]->getQuatK();
-      float quatReal = IMUSensor[sensor]->getQuatReal();
-      bundle.add(partname)
-          .add(sensornames[sensor])
+    if (imu_sensors[sensor]->dataAvailable() == true) {
+      float quatI = imu_sensors[sensor]->getQuatI();
+      float quatJ = imu_sensors[sensor]->getQuatJ();
+      float quatK = imu_sensors[sensor]->getQuatK();
+      float quatReal = imu_sensors[sensor]->getQuatReal();
+
+      // adds the entire quaternion to an OSC bundle, with PART name and sensor name (wrist, indexUpper, etc)
+      bundle.add(PART) // "/lefthand", etc
+          .add(sensornames[sensor]) // "wrist", etc
           .add(quatI)
           .add(quatJ)
           .add(quatK)
           .add(quatReal);
+
+      Serial.print("BNO08x: ");
+      Serial.print(sensornames[sensor]);
+      Serial.print(" (port: ");
+      Serial.print(mux_port);
+      Serial.print(")");
+      Serial.print(" I: ");
+      Serial.print(quatI);
+      Serial.print(" J: ");
+      Serial.print(quatJ);
+      Serial.print(" K: ");
+      Serial.print(quatK);
+      Serial.print(" R: ");
+      Serial.println(quatReal);
+
     } else {
-      Serial.print("data not available for: ");
+
+      Serial.print("BNO08x: Data not available for: ");
       Serial.print(sensornames[sensor]);
       Serial.print(" ");
       Serial.println(sensor);
@@ -276,18 +176,22 @@ void loop() {
       pixel.clear();
       pixel.setPixelColor(0, pixel.Color(255, 0, 0));
       pixel.show();
+
+      bundle.add(PART).add("ERROR"); // send error anyways so it can be tracked in app
+
     }
-    /* Serial.print(PART); */
-    /* Serial.print(": "); */
-    /* Serial.println(sensornames[x]); */
   }
 
-  bundle.add("/battery").add((float)(analogRead(VDIV_PIN) / 1536.0));
+  // battery level, approximately, and whether or not debug is enabled
+  bundle.add("/battery").add(get_battery_level());
+  bundle.add("/debug").add(debug_mode);
 
-  if (!WIFI_DISABLE) {
-    Udp.beginPacket(OSC_HOST, OSC_HOST_PORT);
-    bundle.send(Udp); // send the bytes to the SLIP stream
-    Udp.endPacket();  // mark the end of the OSC Packet
+  if (WIFI_DISABLE == false) {
+    udp.beginPacket(OSC_HOST, OSC_HOST_PORT);
+    bundle.send(udp); // send the bytes to the SLIP stream
+    udp.endPacket();  // mark the end of the OSC Packet
   }
+
   bundle.empty(); // empty the bundle to free room for a new one
 }
+
