@@ -103,14 +103,7 @@ void get_sensors() {
       pixel.show();
 
       // sensors are organized MCU -> I2C Mux -> IMU (even (0x4A)) -> IMU (odd (0x4B))
-      if (sensor == 10) { // TODO: HARDWARE WORKAROUND, REMOVE ME WHEN FIXED
-        mux_port++;
-        i2c_muxer.setPort(mux_port);
-        Serial.print("(Workaround) Mux Port ");
-        Serial.println(mux_port);
-
-        enabled = imu_sensors[sensor]->begin(0x4B, Wire);
-      } else if (sensor % 2 == 0) {
+      if (sensor % 2 == 0) {
         mux_port++;
         i2c_muxer.setPort(mux_port);
         Serial.print("I2C: Mux Port ");
@@ -227,12 +220,7 @@ void calibration_mode() {
 
   for (int sensor = 0; sensor < NUMBER_OF_SENSORS; sensor++) {
     // sensors are organized MCU -> I2C Mux -> IMU (even (0x4A)) -> IMU (odd (0x4B))
-    if (sensor == 10) { // TODO: HARDWARE WORKAROUND, REMOVE ME WHEN FIXED
-      mux_port++;
-      Serial.print("(Workaround) Mux Port ");
-      Serial.println(mux_port);
-      i2c_muxer.setPort(mux_port);
-    } else if (sensor % 2 == 0) {
+    if (sensor % 2 == 0) {
       mux_port++;
       Serial.print("I2C: Mux Port ");
       Serial.println(mux_port);
