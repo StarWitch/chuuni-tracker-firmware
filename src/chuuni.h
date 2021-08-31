@@ -110,21 +110,13 @@
 #define MUX_DISABLE false
 #endif
 
-#ifndef INTERNAL_IMU_ENABLE
-#define INTERNAL_IMU_ENABLE true // we generally want the internal IMU to be enabled
-#endif
-
-#ifndef EXTERNAL_IMU_ENABLE
-#define EXTERNAL_IMU_ENABLE false // needs to be explicitly defined
-#endif
-
 #ifdef LEFTHAND
 #define PART "/lefthand"
-#define NUMBER_OF_SENSORS 12
+#define NUMBER_OF_SENSORS 13
 #endif
 #ifdef RIGHTHAND
 #define PART "/righthand"
-#define NUMBER_OF_SENSORS 12
+#define NUMBER_OF_SENSORS 13
 #endif
 #ifdef LEFTLEG
 #define PART "/leftleg"
@@ -158,6 +150,7 @@
 
 // defining global objects for use
 
+
 #include <WiFi.h>
 #include <WiFiudp.h>
 #include <Wire.h>
@@ -169,12 +162,15 @@
 #include <SparkFun_BNO080_Arduino_Library.h>
 #include <Adafruit_NeoPixel.h>
 
-extern QWIICMUX i2c_muxer;
-extern WiFiUDP udp;
-extern BNO080 **imu_sensors;
-
-extern const char **sensornames;
+#include "helpers.h"
+#include "sensors.h"
 
 extern Adafruit_NeoPixel pixel;
+
+extern ChuuniSensor *sensorlist;
+
+extern QWIICMUX i2c_muxer;
+
+extern WiFiUDP udp;
 
 extern bool debug_mode;

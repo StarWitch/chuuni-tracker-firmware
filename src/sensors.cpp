@@ -1,42 +1,46 @@
 #include "helpers.h"
 
-const char *fingernames[] = {
-    "pinkieUpper", "pinkieLower", "ringUpper", "ringLower",
-    "middleUpper", "middleLower", "indexUpper", "indexLower",
-    "thumbUpper",  "thumbLower", "wrist", "forearm"
+ChuuniSensor rightfingernames[] = {
+  {new BNO080(), &Wire, 0, 0x4B, "thumbLower"},
+  {new BNO080(), &Wire, 0, 0x4A, "thumbUpper"},
+  {new BNO080(), &Wire, 1, 0x4B, "indexLower"},
+  {new BNO080(), &Wire, 1, 0x4A, "indexUpper"},
+  {new BNO080(), &Wire, 2, 0x4B, "middleLower"},
+  {new BNO080(), &Wire, 2, 0x4A, "middleUpper"},
+  {new BNO080(), &Wire, 3, 0x4B, "ringLower"},
+  {new BNO080(), &Wire, 3, 0x4A, "ringUpper"},
+  {new BNO080(), &Wire, 4, 0x4A, "forearm"},
+  {new BNO080(), &Wire, 5, 0x4A, "wrist"},
+  {new BNO080(), &Wire, 7, 0x4B, "pinkieLower"},
+  {new BNO080(), &Wire, 7, 0x4A, "pinkieUpper"},
+  {new BNO080(), &Wire1, 0, 0x4B, "shoulder"}, // internal, not actually using mux port 0
 };
 
-const char *torsonames[] = {
-    "leftArm"
-    "head",
-    "upperBack",
-    "rightArm",
-    "lowerBack",
-};
+/* sensor *leftfingernames[] = { */
+/*     "pinkieUpper", "pinkieLower", "ringUpper", "ringLower", */
+/*     "middleUpper", "middleLower", "indexUpper", "indexLower", */
+/*     "thumbUpper",  "thumbLower", "wrist", "forearm" */
+/* }; */
 
-const char *legnames[] = {
-    "thigh",
-    "calf",
-    "foot",
-};
+/* const char *torsonames[] = { */
+/*     "leftArm" */
+/*     "head", */
+/*     "upperBack", */
+/*     "rightArm", */
+/*     "lowerBack", */
+/* }; */
 
-const char *defaultnames[] = {
-    "sensor",
-};
+/* const char *legnames[] = { */
+/*     "thigh", */
+/*     "calf", */
+/*     "foot", */
+/* }; */
 
-const char **get_sensor_names() {
-  if (PART == "/lefthand" || PART == "/righthand") {
-    return fingernames;
-  } else if (PART == "/leftleg" || PART == "/rightleg") {
-    return legnames;
-  } else if (PART == "/torso") {
-    return torsonames;
-  } else {
-    Serial.println("MCU: PART not defined!");
-    return defaultnames;
-  }
-}
+/* const char *defaultnames[] = { */
+/*     "sensor", */
+/* }; */
 
+// for scanning all I2C devices
 void i2c_scanner(TwoWire *scan_wire) {
   byte error, address; // variable for error and I2C address
   int nDevices;
@@ -75,16 +79,27 @@ void i2c_scanner(TwoWire *scan_wire) {
   }
 }
 
-bool mux_start = false;
-void get_sensors() {
-  // Initialize all the sensors
-  bool init_success = true;
-  bool enabled;
+// for scanning each device attached to the I2C muxer
+void mux_scanner(TwoWire *mux_wire) {
+  Serial.println("I2C: Scanning I2C Muxer");
+  for (int i = 0; i < 8; i++) {
+    Serial.print("I2C: Mux Port: ");
+    Serial.println(i);
+    i2c_muxer.setPort(i);
+    i2c_scanner(mux_wire);
+  }
+  Serial.println("I2C: Mux scan complete");
+}
 
+bool mux_start = false;
+
+void init_mux() {
   if (!MUX_DISABLE && !mux_start) {
     // on "external" Wire interface
+    Serial.println("I2C: Starting mux");
     if (i2c_muxer.begin() == false) {
       Serial.println("I2C: Mux not detected, freezing for input");
+      mux_start = false;
       while (1) {
         pixel.setPixelColor(0, pixel.Color(128, 0, 0));
         pixel.show();
@@ -93,100 +108,78 @@ void get_sensors() {
         pixel.show();
         delay(250);
       }
-      mux_start = true;
-      delay(300); // wait for mux to truly begin
     }
+    mux_start = true;
+    Serial.println("I2C: Mux started");
+    delay(300); // wait for mux to truly begin
+  }
+}
 
-    int mux_port = -1;
-    for (int sensor = 0; sensor < NUMBER_OF_SENSORS - INTERNAL_IMU_ENABLE; sensor++) {
-      pixel.setPixelColor(0, pixel.Color(128, 128, 0));
-      pixel.show();
+// TODO: expand me
+ChuuniSensor *get_sensor_list() {
+  if (PART == "/righthand") {
+    return rightfingernames;
+  }
+  return rightfingernames;
+}
 
-      // sensors are organized MCU -> I2C Mux -> IMU (even (0x4A)) -> IMU (odd (0x4B))
-      if (sensor % 2 == 0) {
-        mux_port++;
-        i2c_muxer.setPort(mux_port);
-        Serial.print("I2C: Mux Port ");
-        Serial.println(mux_port);
+void init_sensors() {
+  // reset power bus
+  digitalWrite(IO_ENABLE_PIN, LOW);
+  delay(250);
+  digitalWrite(IO_ENABLE_PIN, HIGH);
+  delay(250);
+  digitalWrite(BNO_INT_RESET_PIN, LOW);
+  delay(50);
+  digitalWrite(BNO_INT_RESET_PIN, HIGH);
+  delay(50);
 
-        enabled = imu_sensors[sensor]->begin(0x4A, Wire);
-      } else {
-        enabled = imu_sensors[sensor]->begin(0x4B, Wire);
-      }
+  // Initialize all the sensors
+  bool init_success = true;
+  bool enabled;
 
-      if (enabled == false) {
-        init_success = false;
+  if (!MUX_DISABLE && !mux_start) init_mux();
 
-        Serial.print("BNO08x: Sensor ");
-        Serial.print(sensor);
-        Serial.println(" did not begin!");
+  for (int sensor = 0; sensor < NUMBER_OF_SENSORS; sensor++) {
+    pixel.setPixelColor(0, pixel.Color(128, 128, 0));
+    pixel.show();
 
-        pixel.setPixelColor(0, pixel.Color(128, 0, 0));
-        pixel.show();
-        delay(500);
-        pixel.clear();
-        pixel.show();
-      } else {
-        imu_sensors[sensor]->enableRotationVector(IMU_UPDATE_RATE); // set update rate in hertz
-
-        Serial.print("BNO08x: ");
-        Serial.print(sensor);
-        Serial.println(" configured");
-      }
-
+    // sensors are organized MCU -> I2C Mux -> IMU (even (0x4A)) -> IMU (odd (0x4B))
+    if (!MUX_DISABLE && mux_start && i2c_muxer.getPort() != sensorlist[sensor].muxport) {
+      i2c_muxer.setPort(sensorlist[sensor].muxport);
+      Serial.print("I2C: Mux port ");
+      Serial.println(sensorlist[sensor].muxport);
       delay(100);
     }
 
-  }
+    Serial.print("BNO08x: Configuring ");
+    Serial.println(sensorlist[sensor].name);
+    enabled = sensorlist[sensor].sensor->begin(sensorlist[sensor].address, *sensorlist[sensor].wire);
 
-  // for hooking up an IMU without a I2C Mux (body parts, etc)
-  if (EXTERNAL_IMU_ENABLE) {
-    Serial.println("BNO08x: Configuring non-muxed sensors");
-    for (int sensor = 0; sensor < NUMBER_OF_SENSORS - INTERNAL_IMU_ENABLE; sensor++) {
-      // MCU -> 0x4B -> 0x4A
-      if (sensor % 2 == 0) {
-        enabled = imu_sensors[sensor]->begin(0x4B, Wire);
-      } else {
-        enabled = imu_sensors[sensor]->begin(0x4A, Wire);
-      }
-
-      if (enabled == false) {
-        Serial.print("I2c: Sensor ");
-        Serial.print(sensor);
-        Serial.println(" did not begin!");
-        init_success = false;
-        pixel.setPixelColor(0, pixel.Color(128, 0, 0));
-        pixel.show();
-        delay(500);
-        pixel.clear();
-        pixel.show();
-      } else {
-        imu_sensors[sensor]->enableRotationVector(IMU_UPDATE_RATE); // set update rate in hertz
-        Serial.print("BNO08x: ");
-        Serial.print(sensor);
-        Serial.println(" configured.");
-      }
-
-      delay(20);
-    }
-  }
-
-  // last sensor in the stack
-  if (INTERNAL_IMU_ENABLE) {
-    enabled = imu_sensors[NUMBER_OF_SENSORS-1]->begin(0x4B, Wire1); // internal sensor on the WiFi board
     if (enabled == false) {
-      Serial.println("BNO08x: Failed to start onboard IMU");
       init_success = false;
+
+      Serial.print("BNO08x: Sensor did not begin: ");
+      Serial.println(sensor);
+
+      pixel.setPixelColor(0, pixel.Color(128, 0, 0));
+      pixel.show();
+      delay(500);
+      pixel.clear();
+      pixel.show();
     } else {
-      imu_sensors[NUMBER_OF_SENSORS-1]->enableRotationVector(IMU_UPDATE_RATE);
-      Serial.print("BNO08x: ");
-      Serial.print(NUMBER_OF_SENSORS-1);
-      Serial.println(" (Onboard) configured!");
+    delay(100);
+      sensorlist[sensor].sensor->enableRotationVector(IMU_UPDATE_RATE); // set update rate in hertz
+
+      Serial.print("BNO08x: Configured ");
+      Serial.println(sensorlist[sensor].name);
     }
+
+    delay(100);
   }
 
   if (init_success == false) {
-    Serial.print("BNO08x: Failed to initialize, waiting for input");
+    Serial.println("BNO08x: Failed to initialize, waiting for input");
     while (1) {
       pixel.setPixelColor(0, pixel.Color(128, 0, 0));
       pixel.show();
@@ -215,24 +208,18 @@ static void print_accuracy_level(byte accuracy_number) {
 
 // when in this mode, press "s" over serial to "save" to the chip
 void calibration_mode() {
-  int mux_port = -1;
   bool calibrated = false;
 
   for (int sensor = 0; sensor < NUMBER_OF_SENSORS; sensor++) {
     // sensors are organized MCU -> I2C Mux -> IMU (even (0x4A)) -> IMU (odd (0x4B))
-    if (sensor % 2 == 0) {
-      mux_port++;
-      Serial.print("I2C: Mux Port ");
-      Serial.println(mux_port);
-      i2c_muxer.setPort(mux_port);
-    }
-
-    imu_sensors[sensor]->calibrateAll();
-    imu_sensors[sensor]->enableGameRotationVector(100);
-    imu_sensors[sensor]->enableMagnetometer(100);
+    if (i2c_muxer.getPort() != sensorlist[sensor].muxport) i2c_muxer.setPort(sensorlist[sensor].muxport);
+    delay(100); // settle down
+    sensorlist[sensor].sensor->calibrateAll();
+    sensorlist[sensor].sensor->enableGameRotationVector(100);
+    sensorlist[sensor].sensor->enableMagnetometer(100);
 
     Serial.print("BNO08x: Calibrating ");
-    Serial.println(sensornames[sensor]);
+    Serial.println(sensorlist[sensor].name);
     calibrated = false;
 
     delay(1000);
@@ -241,19 +228,18 @@ void calibration_mode() {
       if (Serial.available()) {
         byte incoming = Serial.read();
 
-        if (incoming == 's') {
-          imu_sensors[sensor]->saveCalibration();
-          imu_sensors[sensor]->requestCalibrationStatus();
+        if (incoming == 's') { // waiting for 's' key over serial
+          sensorlist[sensor].sensor->saveCalibration();
+          sensorlist[sensor].sensor->requestCalibrationStatus();
 
           int counter = 100;
 
           while (1) {
             if (--counter == 0) break;
-            if (imu_sensors[sensor]->dataAvailable() == true) {
-              if (imu_sensors[sensor]->calibrationComplete() == true) {
-                Serial.print("BNO08x: ");
-                Serial.print(sensornames[sensor]);
-                Serial.println(" calibration stored");
+            if (sensorlist[sensor].sensor->dataAvailable() == true) {
+              if (sensorlist[sensor].sensor->calibrationComplete() == true) {
+                Serial.print("BNO08x: Calibration stored: ");
+                Serial.println(sensorlist[sensor].name);
                 calibrated = true;
                 delay(1000);
 
@@ -270,17 +256,17 @@ void calibration_mode() {
       }
 
       //Look for reports from the IMU
-      if (imu_sensors[sensor]->dataAvailable() == true && calibrated == false) {
-        float x = imu_sensors[sensor]->getMagX();
-        float y = imu_sensors[sensor]->getMagY();
-        float z = imu_sensors[sensor]->getMagZ();
-        byte accuracy = imu_sensors[sensor]->getMagAccuracy();
+      if (sensorlist[sensor].sensor->dataAvailable() == true && calibrated == false) {
+        float x = sensorlist[sensor].sensor->getMagX();
+        float y = sensorlist[sensor].sensor->getMagY();
+        float z = sensorlist[sensor].sensor->getMagZ();
+        byte accuracy = sensorlist[sensor].sensor->getMagAccuracy();
 
-        float quatI = imu_sensors[sensor]->getQuatI();
-        float quatJ = imu_sensors[sensor]->getQuatJ();
-        float quatK = imu_sensors[sensor]->getQuatK();
-        float quatReal = imu_sensors[sensor]->getQuatReal();
-        byte sensorAccuracy = imu_sensors[sensor]->getQuatAccuracy();
+        float quatI = sensorlist[sensor].sensor->getQuatI();
+        float quatJ = sensorlist[sensor].sensor->getQuatJ();
+        float quatK = sensorlist[sensor].sensor->getQuatK();
+        float quatReal = sensorlist[sensor].sensor->getQuatReal();
+        byte sensorAccuracy = sensorlist[sensor].sensor->getQuatAccuracy();
 
         Serial.print("Mag: ");
         Serial.print(x, 2);
@@ -312,17 +298,17 @@ void calibration_mode() {
       // allows you to press the button again to get out of calibration mode
       if (opt_button.pressed) {
         Serial.println("Opt: Button press received, ending calibration prematurely");
-        imu_sensors[sensor]->endCalibration();
-        imu_sensors[sensor]->enableGameRotationVector(IMU_UPDATE_RATE);
-        imu_sensors[sensor]->enableMagnetometer(IMU_UPDATE_RATE);
+        sensorlist[sensor].sensor->endCalibration();
+        sensorlist[sensor].sensor->enableGameRotationVector(IMU_UPDATE_RATE);
+        sensorlist[sensor].sensor->enableMagnetometer(IMU_UPDATE_RATE);
         return;
       }
 
     }
 
     // reset to default values
-    imu_sensors[sensor]->endCalibration();
-    imu_sensors[sensor]->enableGameRotationVector(IMU_UPDATE_RATE);
-    imu_sensors[sensor]->enableMagnetometer(IMU_UPDATE_RATE);
+    sensorlist[sensor].sensor->endCalibration();
+    sensorlist[sensor].sensor->enableGameRotationVector(IMU_UPDATE_RATE);
+    sensorlist[sensor].sensor->enableMagnetometer(IMU_UPDATE_RATE);
   }
 }

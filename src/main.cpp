@@ -1,15 +1,10 @@
 #include "chuuni.h"
 
-#include "helpers.h"
-#include "sensors.h"
-
 WiFiUDP udp;
-BNO080 **imu_sensors;
-const char **sensornames;
 QWIICMUX i2c_muxer;
+ChuuniSensor *sensorlist;
 Adafruit_NeoPixel pixel = Adafruit_NeoPixel(1, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 OSCBundle bundle;
-int mux_port;
 
 void setup() {
   // initial pixel setup
@@ -60,25 +55,28 @@ void setup() {
   // this will not detect things downstream from the I2C muxer, but *will* detect the muxer itself
   if (I2C_DEBUG == true) {
     Serial.println("I2C: Scanning Wire");
-    i2c_scanner(&Wire);
+    i2c_scanner(&Wire); // external
     Serial.println("I2C: Scanning Wire1");
-    i2c_scanner(&Wire1);
+    i2c_scanner(&Wire1); // internal
+    if (!MUX_DISABLE) {
+      init_mux();
+      mux_scanner(&Wire);
+    }
   }
 
   // allocate sensor objects
-  imu_sensors = new BNO080 *[NUMBER_OF_SENSORS];
-  for (int x = 0; x < NUMBER_OF_SENSORS; x++) {
-    imu_sensors[x] = new BNO080();
-  }
+  Serial.println("BNO08x: Allocating sensors");
+  sensorlist = get_sensor_list();
   Serial.println("BNO08x: Allocated sensors");
 
   // sets up and .begin()'s all sensors'
-  sensornames = get_sensor_names();
-  get_sensors();
+  Serial.println("BNO08x: Starting sensors");
+  init_sensors();
+  Serial.println("BNO08x: Sensors started");
 
   // set WIFI_SSID and WIFI_PASS in your user_config.h file (see README)
   if (WIFI_DISABLE == false) {
-    get_wifi();
+    init_wifi();
   }
 
   pixel.setPixelColor(0, pixel.Color(128, 0, 128)); // violet
@@ -99,7 +97,7 @@ void loop() {
       switch (opt_button.selected) {
         case 0:
           opt_button.selected = 0;
-          get_sensors();
+          init_sensors();
           break;
         case 1:
           opt_button.selected = 0;
@@ -107,7 +105,7 @@ void loop() {
           break;
         case 2:
           opt_button.selected = 0;
-          get_wifi();
+          init_wifi();
           break;
         default:
           opt_button.selected = 0;
@@ -123,39 +121,32 @@ void loop() {
     debug_button.pressed = false;
     set_serial_debug();
   }
-
-  mux_port = -1;
-
   pixel.clear();
   pixel.setPixelColor(0, pixel.Color(128, 0, 128));
   pixel.show();
 
+
   for (int sensor = 0; sensor < NUMBER_OF_SENSORS; sensor++) {
-    if (sensor != NUMBER_OF_SENSORS - 1 && INTERNAL_IMU_ENABLE) {
-      // two sensors per port, need to count mux independently
-      if (sensor % 2 == 0) {
-        mux_port++;
-        i2c_muxer.setPort(mux_port);
-      }
-    }
-    if (imu_sensors[sensor]->dataAvailable() == true) {
-      float quatI = imu_sensors[sensor]->getQuatI();
-      float quatJ = imu_sensors[sensor]->getQuatJ();
-      float quatK = imu_sensors[sensor]->getQuatK();
-      float quatReal = imu_sensors[sensor]->getQuatReal();
+    if (i2c_muxer.getPort() != sensorlist[sensor].muxport) i2c_muxer.setPort(sensorlist[sensor].muxport);
+
+    if (sensorlist[sensor].sensor->dataAvailable() == true) {
+      float quatI = sensorlist[sensor].sensor->getQuatI();
+      float quatJ = sensorlist[sensor].sensor->getQuatJ();
+      float quatK = sensorlist[sensor].sensor->getQuatK();
+      float quatReal = sensorlist[sensor].sensor->getQuatReal();
 
       // adds the entire quaternion to an OSC bundle, with PART name and sensor name (wrist, indexUpper, etc)
       bundle.add(PART) // "/lefthand", etc
-          .add(sensornames[sensor]) // "wrist", etc
+          .add(sensorlist[sensor].name) // "wrist", etc
           .add(quatI)
           .add(quatJ)
           .add(quatK)
           .add(quatReal);
 
       Serial.print("BNO08x: ");
-      Serial.print(sensornames[sensor]);
+      Serial.print(sensorlist[sensor].name);
       Serial.print(" (port: ");
-      Serial.print(mux_port);
+      Serial.print(sensorlist[sensor].muxport);
       Serial.print(")");
       Serial.print(" I: ");
       Serial.print(quatI);
@@ -165,11 +156,9 @@ void loop() {
       Serial.print(quatK);
       Serial.print(" R: ");
       Serial.println(quatReal);
-
     } else {
-
       Serial.print("BNO08x: Data not available for: ");
-      Serial.print(sensornames[sensor]);
+      Serial.print(sensorlist[sensor].name);
       Serial.print(" ");
       Serial.println(sensor);
 

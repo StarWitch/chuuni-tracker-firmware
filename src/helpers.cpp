@@ -19,7 +19,7 @@ void get_time() {
   print_local_time();
 }
 
-void get_wifi() {
+void init_wifi() {
   // connect to WiFi
   pixel.setPixelColor(0, pixel.Color(0, 0, 128));
   pixel.show();
@@ -151,10 +151,6 @@ void show_serial_splash() {
   Serial.println(WIFI_DISABLE);
   Serial.print("I2C Mux Disabled: ");
   Serial.println(MUX_DISABLE);
-  Serial.print("Internal IMU: ");
-  Serial.println(INTERNAL_IMU_ENABLE);
-  Serial.print("External IMU: ");
-  Serial.println(EXTERNAL_IMU_ENABLE);
   Serial.println("\n* Debug *");
   Serial.print("I2C Debug: ");
   Serial.println(I2C_DEBUG);

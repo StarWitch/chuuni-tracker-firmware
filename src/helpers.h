@@ -13,8 +13,8 @@ extern Button debug_button;
 
 void ARDUINO_ISR_ATTR isr(void *arg);
 
+void init_wifi();
 void get_time();
-void get_wifi();
 void get_serial_splash();
 void set_serial_debug();
 void menu_selector();
