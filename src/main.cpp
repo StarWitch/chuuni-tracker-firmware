@@ -24,7 +24,7 @@ void setup() {
   pinMode(BOOT_BUTTON_PIN, INPUT_PULLUP);
 
   // hold down Boot0 pin AFTER initialization (i.e: light comes on) to get serial debug during boot
-  if (SERIAL_DEBUG == true || !digitalRead(BOOT_BUTTON_PIN)) {
+  if (SERIAL_DEBUG || !digitalRead(BOOT_BUTTON_PIN)) {
     set_serial_debug();
   }
 
@@ -45,15 +45,15 @@ void setup() {
   delay(50);
 
   // initialize internal and external I2C
-  Wire.begin(SDA_EXT, SCL_EXT, 400000); // sda, scl, frequency (400kHz)
+  Wire.begin(SDA_EXT, SCL_EXT, I2C_SPEED); // sda, scl, frequency (800kHz)
   Serial.println("I2C: Began Wire");
-  Wire1.begin(SDA_INT, SCL_INT, 400000);
+  Wire1.begin(SDA_INT, SCL_INT, I2C_SPEED);
   Serial.println("I2C: Began Wire1");
   delay(300); // wait for i2c to truly begin
 
   // debugging, scans both I2C busses for everything it can see
   // this will not detect things downstream from the I2C muxer, but *will* detect the muxer itself
-  if (I2C_DEBUG == true) {
+  if (I2C_DEBUG ) {
     Serial.println("I2C: Scanning Wire");
     i2c_scanner(&Wire); // external
     Serial.println("I2C: Scanning Wire1");
@@ -121,15 +121,11 @@ void loop() {
     debug_button.pressed = false;
     set_serial_debug();
   }
-  pixel.clear();
-  pixel.setPixelColor(0, pixel.Color(128, 0, 128));
-  pixel.show();
-
 
   for (int sensor = 0; sensor < NUMBER_OF_SENSORS; sensor++) {
     if (i2c_muxer.getPort() != sensorlist[sensor].muxport) i2c_muxer.setPort(sensorlist[sensor].muxport);
 
-    if (sensorlist[sensor].sensor->dataAvailable() == true) {
+    if (sensorlist[sensor].sensor->dataAvailable()) {
       float quatI = sensorlist[sensor].sensor->getQuatI();
       float quatJ = sensorlist[sensor].sensor->getQuatJ();
       float quatK = sensorlist[sensor].sensor->getQuatK();
@@ -167,6 +163,10 @@ void loop() {
       pixel.show();
 
       bundle.add(PART).add("ERROR"); // send error anyways so it can be tracked in app
+      delay(10);
+      pixel.clear();
+      pixel.setPixelColor(0, pixel.Color(128, 0, 128));
+      pixel.show();
 
     }
   }
@@ -175,7 +175,7 @@ void loop() {
   bundle.add("/battery").add(get_battery_level());
   bundle.add("/debug").add(debug_mode);
 
-  if (WIFI_DISABLE == false) {
+  if (!WIFI_DISABLE) {
     udp.beginPacket(OSC_HOST, OSC_HOST_PORT);
     bundle.send(udp); // send the bytes to the SLIP stream
     udp.endPacket();  // mark the end of the OSC Packet

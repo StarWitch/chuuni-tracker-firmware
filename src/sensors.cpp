@@ -97,7 +97,7 @@ void init_mux() {
   if (!MUX_DISABLE && !mux_start) {
     // on "external" Wire interface
     Serial.println("I2C: Starting mux");
-    if (i2c_muxer.begin() == false) {
+    if (!i2c_muxer.begin()) {
       Serial.println("I2C: Mux not detected, freezing for input");
       mux_start = false;
       while (1) {
@@ -156,7 +156,7 @@ void init_sensors() {
     Serial.println(sensorlist[sensor].name);
     enabled = sensorlist[sensor].sensor->begin(sensorlist[sensor].address, *sensorlist[sensor].wire);
 
-    if (enabled == false) {
+    if (!enabled) {
       init_success = false;
 
       Serial.print("BNO08x: Sensor did not begin: ");
@@ -169,7 +169,8 @@ void init_sensors() {
       pixel.show();
     } else {
     delay(100);
-      sensorlist[sensor].sensor->enableRotationVector(IMU_UPDATE_RATE); // set update rate in hertz
+
+      sensorlist[sensor].sensor->enableARVRStabilizedGameRotationVector(IMU_UPDATE_RATE); // set update rate in hertz
 
       Serial.print("BNO08x: Configured ");
       Serial.println(sensorlist[sensor].name);
@@ -178,7 +179,7 @@ void init_sensors() {
     delay(100);
   }
 
-  if (init_success == false) {
+  if (!init_success) {
     Serial.println("BNO08x: Failed to initialize, waiting for input");
     while (1) {
       pixel.setPixelColor(0, pixel.Color(128, 0, 0));
@@ -224,7 +225,7 @@ void calibration_mode() {
 
     delay(1000);
 
-    while (calibrated == false) {
+    while (!calibrated) {
       if (Serial.available()) {
         byte incoming = Serial.read();
 
@@ -236,8 +237,8 @@ void calibration_mode() {
 
           while (1) {
             if (--counter == 0) break;
-            if (sensorlist[sensor].sensor->dataAvailable() == true) {
-              if (sensorlist[sensor].sensor->calibrationComplete() == true) {
+            if (sensorlist[sensor].sensor->dataAvailable()) {
+              if (sensorlist[sensor].sensor->calibrationComplete()) {
                 Serial.print("BNO08x: Calibration stored: ");
                 Serial.println(sensorlist[sensor].name);
                 calibrated = true;
@@ -256,7 +257,7 @@ void calibration_mode() {
       }
 
       //Look for reports from the IMU
-      if (sensorlist[sensor].sensor->dataAvailable() == true && calibrated == false) {
+      if (sensorlist[sensor].sensor->dataAvailable() && !calibrated) {
         float x = sensorlist[sensor].sensor->getMagX();
         float y = sensorlist[sensor].sensor->getMagY();
         float z = sensorlist[sensor].sensor->getMagZ();
@@ -299,7 +300,7 @@ void calibration_mode() {
       if (opt_button.pressed) {
         Serial.println("Opt: Button press received, ending calibration prematurely");
         sensorlist[sensor].sensor->endCalibration();
-        sensorlist[sensor].sensor->enableGameRotationVector(IMU_UPDATE_RATE);
+        sensorlist[sensor].sensor->enableARVRStabilizedGameRotationVector(IMU_UPDATE_RATE);
         sensorlist[sensor].sensor->enableMagnetometer(IMU_UPDATE_RATE);
         return;
       }
@@ -308,7 +309,7 @@ void calibration_mode() {
 
     // reset to default values
     sensorlist[sensor].sensor->endCalibration();
-    sensorlist[sensor].sensor->enableGameRotationVector(IMU_UPDATE_RATE);
+    sensorlist[sensor].sensor->enableARVRStabilizedGameRotationVector(IMU_UPDATE_RATE);
     sensorlist[sensor].sensor->enableMagnetometer(IMU_UPDATE_RATE);
   }
 }

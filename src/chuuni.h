@@ -105,6 +105,8 @@
 // in hertz, has to be at least 1
 #define IMU_UPDATE_RATE 1
 
+#define I2C_SPEED 800000
+
 // for external IMUs connected to a TCA9458 multiplexer
 #ifndef MUX_DISABLE
 #define MUX_DISABLE false
