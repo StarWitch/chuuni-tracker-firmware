@@ -22,3 +22,14 @@ update:
 
 compiledb:
 	pio run -t compiledb
+
+leftleg:
+	pio run -e leftleg -t upload
+rightleg:
+	pio run -e rightleg -t upload
+lefthand:
+	pio run -e lefthand -t upload
+righthand:
+	pio run -e righthand -t upload
+torso:
+	pio run -e torso -t upload

@@ -108,13 +108,14 @@
 #define I2C_SPEED 800000
 
 // for external IMUs connected to a TCA9458 multiplexer
-#ifndef MUX_DISABLE
-#define MUX_DISABLE false
+#ifndef MUX_ENABLE
+#define MUX_ENABLE false
 #endif
 
 #ifdef LEFTHAND
 #define PART "/lefthand"
-#define NUMBER_OF_SENSORS 13
+#define NUMBER_OF_SENSORS 2 // TODO: temporary until glove built
+//#define NUMBER_OF_SENSORS 13
 #endif
 #ifdef RIGHTHAND
 #define PART "/righthand"
@@ -127,14 +128,6 @@
 #ifdef RIGHTLEG
 #define PART "/rightleg"
 #define NUMBER_OF_SENSORS 3
-#endif
-#ifdef LEFTARM
-#define PART "/leftarm"
-#define NUMBER_OF_SENSORS 2
-#endif
-#ifdef RIGHTARM
-#define PART "/rightarm"
-#define NUMBER_OF_SENSORS 2
 #endif
 #ifdef TORSO
 #define PART "/torso"

@@ -11,7 +11,7 @@ void setup() {
   pixel.begin();
   pixel.setBrightness(128);
   pixel.clear();
-  pixel.setPixelColor(0, pixel.Color(128, 128, 128));
+  pixel.setPixelColor(0, pixel.Color(192, 0, 192));
   pixel.show();
   delay(300);
   pixel.clear();
@@ -53,12 +53,12 @@ void setup() {
 
   // debugging, scans both I2C busses for everything it can see
   // this will not detect things downstream from the I2C muxer, but *will* detect the muxer itself
-  if (I2C_DEBUG ) {
+  if (I2C_DEBUG) {
     Serial.println("I2C: Scanning Wire");
     i2c_scanner(&Wire); // external
     Serial.println("I2C: Scanning Wire1");
     i2c_scanner(&Wire1); // internal
-    if (!MUX_DISABLE) {
+    if (MUX_ENABLE) {
       init_mux();
       mux_scanner(&Wire);
     }
@@ -123,7 +123,11 @@ void loop() {
   }
 
   for (int sensor = 0; sensor < NUMBER_OF_SENSORS; sensor++) {
-    if (i2c_muxer.getPort() != sensorlist[sensor].muxport) i2c_muxer.setPort(sensorlist[sensor].muxport);
+    if (MUX_ENABLE) {
+      if (i2c_muxer.getPort() != sensorlist[sensor].muxport) i2c_muxer.setPort(sensorlist[sensor].muxport);
+    }
+    /* char sensorname[50]; */
+    /* snprintf(sensorname, sizeof(sensorname), "%s%s%s", PART, "/", sensorlist[sensor].name); // "/lefthand/pinkieLower", etc */
 
     if (sensorlist[sensor].sensor->dataAvailable()) {
       float quatI = sensorlist[sensor].sensor->getQuatI();
@@ -132,12 +136,12 @@ void loop() {
       float quatReal = sensorlist[sensor].sensor->getQuatReal();
 
       // adds the entire quaternion to an OSC bundle, with PART name and sensor name (wrist, indexUpper, etc)
-      bundle.add(PART) // "/lefthand", etc
-          .add(sensorlist[sensor].name) // "wrist", etc
+      bundle.add(PART)
           .add(quatI)
           .add(quatJ)
           .add(quatK)
-          .add(quatReal);
+          .add(quatReal)
+          .add(sensorlist[sensor].name); // NOTE: OscCore in Unity has problems with strings going first, so put this last
 
       Serial.print("BNO08x: ");
       Serial.print(sensorlist[sensor].name);
@@ -162,8 +166,16 @@ void loop() {
       pixel.setPixelColor(0, pixel.Color(255, 0, 0));
       pixel.show();
 
-      bundle.add(PART).add("ERROR"); // send error anyways so it can be tracked in app
-      delay(10);
+      // send error anyways so it can be tracked in app
+      float error = 0.0;
+      bundle.add(PART)
+        .add(error)
+        .add(error)
+        .add(error)
+        .add(error)
+        .add(sensorlist[sensor].name); // NOTE: OscCore in Unity has problems with strings going first, so put this last
+
+      delay(5);
       pixel.clear();
       pixel.setPixelColor(0, pixel.Color(128, 0, 128));
       pixel.show();
@@ -172,8 +184,8 @@ void loop() {
   }
 
   // battery level, approximately, and whether or not debug is enabled
-  bundle.add("/battery").add(get_battery_level());
-  bundle.add("/debug").add(debug_mode);
+  bundle.add(PART).add(get_battery_level()).add("battery");
+  bundle.add(PART).add(debug_mode).add("debug");
 
   if (!WIFI_DISABLE) {
     udp.beginPacket(OSC_HOST, OSC_HOST_PORT);

@@ -16,29 +16,27 @@ ChuuniSensor rightfingernames[] = {
   {new BNO080(), &Wire1, 0, 0x4B, "shoulder"}, // internal, not actually using mux port 0
 };
 
-/* sensor *leftfingernames[] = { */
-/*     "pinkieUpper", "pinkieLower", "ringUpper", "ringLower", */
-/*     "middleUpper", "middleLower", "indexUpper", "indexLower", */
-/*     "thumbUpper",  "thumbLower", "wrist", "forearm" */
-/* }; */
+// TODO: temporary until second glove made
+ChuuniSensor leftfingernames[] = {
+  {new BNO080(), &Wire, 0, 0x4A, "forearm"},
+  {new BNO080(), &Wire1, 0, 0x4B, "shoulder"}, // internal
+};
 
-/* const char *torsonames[] = { */
-/*     "leftArm" */
-/*     "head", */
-/*     "upperBack", */
-/*     "rightArm", */
-/*     "lowerBack", */
-/* }; */
+ChuuniSensor legnames[] = {
+  {new BNO080(), &Wire, 0, 0x4A, "ankle"},
+  {new BNO080(), &Wire, 0, 0x4B, "foot"},
+  {new BNO080(), &Wire1, 0, 0x4B, "thigh"},
+};
 
-/* const char *legnames[] = { */
-/*     "thigh", */
-/*     "calf", */
-/*     "foot", */
-/* }; */
+ChuuniSensor torsonames[] = {
+  {new BNO080(), &Wire, 0, 0x4A, "chest"},
+  {new BNO080(), &Wire, 0, 0x4B, "head"},
+  {new BNO080(), &Wire1, 0, 0x4B, "hips"},
+};
 
-/* const char *defaultnames[] = { */
-/*     "sensor", */
-/* }; */
+ChuuniSensor defaultnames[] = {
+  {new BNO080(), &Wire1, 0, 0x4B, "unassigned"},
+};
 
 // for scanning all I2C devices
 void i2c_scanner(TwoWire *scan_wire) {
@@ -94,7 +92,7 @@ void mux_scanner(TwoWire *mux_wire) {
 bool mux_start = false;
 
 void init_mux() {
-  if (!MUX_DISABLE && !mux_start) {
+  if (MUX_ENABLE && !mux_start) {
     // on "external" Wire interface
     Serial.println("I2C: Starting mux");
     if (!i2c_muxer.begin()) {
@@ -115,12 +113,17 @@ void init_mux() {
   }
 }
 
-// TODO: expand me
 ChuuniSensor *get_sensor_list() {
   if (PART == "/righthand") {
     return rightfingernames;
+  } else if (PART == "/lefthand") {
+    return leftfingernames;
+  } else if (PART == "/torso") {
+    return torsonames;
+  } else if (PART == "/leftleg" || PART == "/rightleg") {
+    return legnames;
   }
-  return rightfingernames;
+  return defaultnames;
 }
 
 void init_sensors() {
@@ -138,14 +141,14 @@ void init_sensors() {
   bool init_success = true;
   bool enabled;
 
-  if (!MUX_DISABLE && !mux_start) init_mux();
+  if (MUX_ENABLE && !mux_start) init_mux();
 
   for (int sensor = 0; sensor < NUMBER_OF_SENSORS; sensor++) {
     pixel.setPixelColor(0, pixel.Color(128, 128, 0));
     pixel.show();
 
     // sensors are organized MCU -> I2C Mux -> IMU (even (0x4A)) -> IMU (odd (0x4B))
-    if (!MUX_DISABLE && mux_start && i2c_muxer.getPort() != sensorlist[sensor].muxport) {
+    if (MUX_ENABLE && mux_start && i2c_muxer.getPort() != sensorlist[sensor].muxport) {
       i2c_muxer.setPort(sensorlist[sensor].muxport);
       Serial.print("I2C: Mux port ");
       Serial.println(sensorlist[sensor].muxport);
@@ -170,10 +173,15 @@ void init_sensors() {
     } else {
     delay(100);
 
-      sensorlist[sensor].sensor->enableARVRStabilizedGameRotationVector(IMU_UPDATE_RATE); // set update rate in hertz
+      sensorlist[sensor].sensor->enableARVRStabilizedRotationVector(IMU_UPDATE_RATE); // set update rate in hertz
+      pixel.setPixelColor(0, pixel.Color(0, 128, 0));
+      pixel.show();
 
       Serial.print("BNO08x: Configured ");
       Serial.println(sensorlist[sensor].name);
+      delay(300);
+      pixel.clear();
+      pixel.show();
     }
 
     delay(100);
@@ -216,7 +224,7 @@ void calibration_mode() {
     if (i2c_muxer.getPort() != sensorlist[sensor].muxport) i2c_muxer.setPort(sensorlist[sensor].muxport);
     delay(100); // settle down
     sensorlist[sensor].sensor->calibrateAll();
-    sensorlist[sensor].sensor->enableGameRotationVector(100);
+    sensorlist[sensor].sensor->enableARVRStabilizedRotationVector(100);
     sensorlist[sensor].sensor->enableMagnetometer(100);
 
     Serial.print("BNO08x: Calibrating ");
@@ -300,7 +308,7 @@ void calibration_mode() {
       if (opt_button.pressed) {
         Serial.println("Opt: Button press received, ending calibration prematurely");
         sensorlist[sensor].sensor->endCalibration();
-        sensorlist[sensor].sensor->enableARVRStabilizedGameRotationVector(IMU_UPDATE_RATE);
+        sensorlist[sensor].sensor->enableARVRStabilizedRotationVector(IMU_UPDATE_RATE);
         sensorlist[sensor].sensor->enableMagnetometer(IMU_UPDATE_RATE);
         return;
       }
@@ -309,7 +317,7 @@ void calibration_mode() {
 
     // reset to default values
     sensorlist[sensor].sensor->endCalibration();
-    sensorlist[sensor].sensor->enableARVRStabilizedGameRotationVector(IMU_UPDATE_RATE);
+    sensorlist[sensor].sensor->enableARVRStabilizedRotationVector(IMU_UPDATE_RATE);
     sensorlist[sensor].sensor->enableMagnetometer(IMU_UPDATE_RATE);
   }
 }

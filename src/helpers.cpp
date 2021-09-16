@@ -63,6 +63,7 @@ void init_wifi() {
 
   // begin sending packets
   udp.begin(OSC_CLIENT_PORT);
+  Serial.println("WiFi: Began UDP Client");
 }
 
 // button interrupt section
@@ -149,8 +150,8 @@ void show_serial_splash() {
   Serial.println("* Functions *");
   Serial.print("WiFi Disabled: ");
   Serial.println(WIFI_DISABLE);
-  Serial.print("I2C Mux Disabled: ");
-  Serial.println(MUX_DISABLE);
+  Serial.print("I2C Mux Enabled: ");
+  Serial.println(MUX_ENABLE);
   Serial.println("\n* Debug *");
   Serial.print("I2C Debug: ");
   Serial.println(I2C_DEBUG);
