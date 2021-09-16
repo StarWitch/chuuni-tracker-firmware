@@ -10,9 +10,8 @@ typedef struct ChuuniSensor {
   const int muxport;
   const uint8_t address;
   const char name[20];
+  int failtimes;
 } chuunisensor;
-
-extern ChuuniSensor rightfingernames[];
 
 extern bool mux_start;
 

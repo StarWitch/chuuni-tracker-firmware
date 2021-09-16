@@ -122,6 +122,8 @@ void loop() {
     set_serial_debug();
   }
 
+  char message[80] = "";
+  int reason = 0;
   for (int sensor = 0; sensor < NUMBER_OF_SENSORS; sensor++) {
     if (MUX_ENABLE) {
       if (i2c_muxer.getPort() != sensorlist[sensor].muxport) i2c_muxer.setPort(sensorlist[sensor].muxport);
@@ -147,15 +149,26 @@ void loop() {
       Serial.print(sensorlist[sensor].name);
       Serial.print(" (port: ");
       Serial.print(sensorlist[sensor].muxport);
-      Serial.print(")");
+      //Serial.print(")");
       Serial.print(" I: ");
       Serial.print(quatI);
       Serial.print(" J: ");
       Serial.print(quatJ);
-      Serial.print(" K: ");
+        Serial.print(" K: ");
       Serial.print(quatK);
       Serial.print(" R: ");
       Serial.println(quatReal);
+    } else if (sensorlist[sensor].sensor->hasReset()) {
+      reason = sensorlist[sensor].sensor->resetReason();
+      sensorlist[sensor].sensor->enableARVRStabilizedRotationVector(IMU_UPDATE_RATE);
+      snprintf(message, sizeof(message), "reset detected for %s/%s: %i", PART, sensorlist[sensor].name, reason);
+      bundle.add(PART).add(message).add("message");
+      Serial.print("BNO08x: reset detected for ");
+      Serial.print(PART);
+      Serial.print("/");
+      Serial.print(sensorlist[sensor].name);
+      Serial.print(": ");
+      Serial.println(reason);
     } else {
       Serial.print("BNO08x: Data not available for: ");
       Serial.print(sensorlist[sensor].name);
@@ -175,17 +188,16 @@ void loop() {
         .add(error)
         .add(sensorlist[sensor].name); // NOTE: OscCore in Unity has problems with strings going first, so put this last
 
-      delay(5);
+      delay(10);
       pixel.clear();
       pixel.setPixelColor(0, pixel.Color(128, 0, 128));
       pixel.show();
-
     }
   }
 
   // battery level, approximately, and whether or not debug is enabled
   bundle.add(PART).add(get_battery_level()).add("battery");
-  bundle.add(PART).add(debug_mode).add("debug");
+  bundle.add(PART).add(get_debug_mode()).add("debug");
 
   if (!WIFI_DISABLE) {
     udp.beginPacket(OSC_HOST, OSC_HOST_PORT);
@@ -194,5 +206,7 @@ void loop() {
   }
 
   bundle.empty(); // empty the bundle to free room for a new one
+  snprintf(message, sizeof(message), ""); // reset message
+  reason = 0;
 }
 

@@ -143,6 +143,10 @@
 #define NUMBER_OF_SENSORS 1
 #endif
 
+#ifndef FAIL_THRESHOLD
+#define FAIL_THRESHOLD 10
+#endif
+
 // defining global objects for use
 
 
@@ -168,4 +172,3 @@ extern QWIICMUX i2c_muxer;
 
 extern WiFiUDP udp;
 
-extern bool debug_mode;

@@ -196,7 +196,7 @@ void show_serial_splash() {
   Serial.println(get_battery_level());
 }
 
-bool debug_mode;
+bool debug_mode = false;
 
 void set_serial_debug() {
   if (debug_mode) {
@@ -212,4 +212,8 @@ void set_serial_debug() {
 
     debug_mode = true;
   }
+}
+
+bool get_debug_mode() {
+  return debug_mode;
 }

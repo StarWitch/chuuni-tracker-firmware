@@ -23,14 +23,14 @@ ChuuniSensor leftfingernames[] = {
 };
 
 ChuuniSensor legnames[] = {
-  {new BNO080(), &Wire, 0, 0x4A, "ankle"},
-  {new BNO080(), &Wire, 0, 0x4B, "foot"},
+  {new BNO080(), &Wire, 0, 0x4B, "ankle"},
+  {new BNO080(), &Wire, 0, 0x4A, "foot"},
   {new BNO080(), &Wire1, 0, 0x4B, "thigh"},
 };
 
 ChuuniSensor torsonames[] = {
-  {new BNO080(), &Wire, 0, 0x4A, "chest"},
-  {new BNO080(), &Wire, 0, 0x4B, "head"},
+  {new BNO080(), &Wire, 0, 0x4B, "chest"},
+  {new BNO080(), &Wire, 0, 0x4A, "head"},
   {new BNO080(), &Wire1, 0, 0x4B, "hips"},
 };
 
