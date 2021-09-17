@@ -3,7 +3,9 @@ ChuuniTracker Firmware
 
 For a custom board with an ESP32-S2, BNO085 IMU, and ISL6292 Li-ion Charger.
 
-Pinouts for ChuuniTracker as of PCB revision v1.5.1.
+You can see the CAD files for the project `here <https://gitlab.com/StarWitch/PCB-Designs/-/tree/master/ChuuniTracker>`__.
+
+Pinouts for ChuuniTracker as of PCB revision v1.5.
 
 * IO0 = Boot0 Button
 * IO5 = Voltage Divider
@@ -18,9 +20,5 @@ Pinouts for ChuuniTracker as of PCB revision v1.5.1.
 * IO37 = VCCIO Enable (Required HIGH for SDA_EXT/SCL_EXT)
 * IO38 = 1-bit mem for reset
 * IO45 = Status NeoPixel
-
-v1.5.1 only (unreleased):
-* IO9 = I2C_EN
-* IO10 = I2C_READY
 
 In heavy development, will update README when more work is done.
